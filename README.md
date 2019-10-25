@@ -1,9 +1,12 @@
-# TensorFlow Research Library
+# Theoretical evidence for adversarial robustness through randomization
 
-## Setup library
+This repository contains the code for our **NIPS 2019** [Paper](https://arxiv.org/abs/1902.01148)
+
+
+## Setup
 
 ```
-export PROJECTDIR=`pwd`/neuralnet
+export PROJECTDIR=`pwd`/Adversarial-Robustness-Through-Randomization
 
 # define the data and models folders
 mkdir data models
