@@ -1,0 +1,174 @@
+
+default: &DEFAULT
+  train_batch_size:           100
+  num_epochs:                 200
+  start_new_model:            True
+  train_num_gpu:              4
+  clear_devices:              False
+  profiler:                   False
+  compile:                    False
+  debug:                      False
+
+  log_device_placement:       False
+  save_checkpoint_steps:      250
+  save_summaries_steps:       125
+  frequency_log_steps:        100
+
+  reader:                     CIFAR10Reader
+  one_hot_labels:             False
+  per_image_standardization:  False
+  dataset_standardization:    False
+  grayscale:                  False
+  data_augmentation:          True
+  readers_params:
+    num_parallel_calls:       32
+    num_parallel_readers:     16
+    prefetch_buffer_size:     2000
+    cache_dataset:            False
+    drop_remainder:           False
+
+  model:                      WideResnetModel
+  wide_resnet:
+    widen_factor:             10
+    depth:                    28
+    leaky_slope:              0.1
+    dropout:                  0.3
+    train_with_noise:         True
+    distributions:            {distributions}
+    scale_noise:              {scale_noise}
+    learn_noise_defense:      False
+  random_model:
+    dp_epsilon:               1.0 
+    dp_delta:                 0.05
+    attack_norm_bound:        0.1
+    noise_after_n_layers:     1
+    sensitivity_norm:         l2
+    sensitivity_control_scheme: 'bound'
+    layer_sensitivity_bounds: ['l2_l2']
+
+
+  loss:                       SoftmaxCrossEntropyWithLogits
+  fused_loss:                 True
+  reg_norm:                   l2
+  weight_decay_rate:          0.0002
+  regularization_penalty:     1.0
+  
+  lr_strategy:                piecewise_constant
+  piecewise_constant:
+    boundaries:               [7500, 15000, 20000]
+    values:                   [0.1, 0.02, 0.004, 0.00008]
+  exponential_decay:
+    base_lr:                  0.01
+    lr_decay:                 0.97
+    lr_decay_examples:        400000
+  cyclic_lr:
+    base_lr:                  0.01
+    min_lr:                   0.001
+    max_lr:                   1
+    step_size_lr:             100
+    mode_cyclic_lr:           triangular
+    gamma:                    0.99994
+  
+  optimizer:                  MomentumOptimizer
+  MomentumOptimizer:
+    momentum:                 0.9
+    use_nesterov:             True
+    use_locking:              False
+  AdamOptimizer: 
+    beta1:                    0.9
+    beta2:                    0.999
+    epsilon:                  1.e-08
+    use_locking:              False
+  
+  gradients:
+    make_gradient_summary:    False
+    clip_gradient_norm:       0
+    perturbed_gradients:      False
+    perturbed_threshold:      0.03
+    compute_hessian:          False
+
+  update_ops:
+    parseval_update:          False
+    parseval_step:            0.0003
+    parseval_loops:           10
+
+train: &TRAIN
+  <<: *DEFAULT 
+  data_pattern:               train*
+
+eval: &EVAL
+  <<: *DEFAULT
+  eval_under_attack:          False
+  eval_batch_size:            200
+  eval_num_gpu:               4
+  start_eval_from_ckpt:       first
+  cherrypick:                 None
+  start_new_model:            False
+  stopped_at_n:               auto
+  noise_in_eval:              True
+
+eval_test: &EVAL_TEST
+  <<: *EVAL
+  data_pattern:               test*
+
+
+
+
+
+attack: &ATTACK
+  dump_files:                 False
+  eval_under_attack:          True
+  eval_batch_size:            5
+  eval_num_gpu:               1
+  attack_sample:              80
+
+attack_fgm:
+  <<: *DEFAULT
+  <<: *EVAL_TEST
+  <<: *ATTACK
+  attack_method:              FastGradientMethod
+  FastGradientMethod:
+    eps:                      0.06
+    ord:                      inf
+    clip_min:                 -1.0
+    clip_max:                 +1.0
+
+attack_pgd:
+  <<: *DEFAULT
+  <<: *EVAL_TEST
+  <<: *ATTACK
+  attack_method:              ProjectedGradientDescent
+  ProjectedGradientDescent:
+    rand_minmax:              0.3
+    eps:                      0.06
+    eps_iter:                 0.006
+    nb_iter:                  10
+    ord:                      inf
+    clip_min:                 -1.0
+    clip_max:                 +1.0
+
+attack_carlini:
+  <<: *DEFAULT
+  <<: *EVAL_TEST
+  <<: *ATTACK
+  attack_method:              CarliniWagnerL2
+  CarliniWagnerL2:
+    binary_search_steps:      9
+    max_iterations:           60
+    learning_rate:            1.0e-2
+    initial_const:            1.0e-3
+    clip_min:                 -1.0
+    clip_max:                 +1.0
+
+attack_elasticnet:
+  <<: *DEFAULT
+  <<: *EVAL_TEST
+  <<: *ATTACK
+  attack_method:              ElasticNet
+  ElasticNet:
+    binary_search_steps:      9
+    max_iterations:           60
+    learning_rate:            1.0e-2
+    initial_const:            1.0e-3
+    clip_min:                 -1.0
+    clip_max:                 +1.0
